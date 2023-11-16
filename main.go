@@ -12,12 +12,12 @@ func main() {
 	const filename = "db_dictionary.json"
 	dict := dictionary.New()
 	reader := bufio.NewReader(os.Stdin)
-	dict.LoadFromFile()
 
 	for {
 		fmt.Printf("\nEnter action ->  add | define | remove | list | exit  : ")
 		action, _ := reader.ReadString('\n')
 		action = strings.TrimSpace(action)
+		dict.LoadFromFile()
 
 		switch action {
 		case "add":
