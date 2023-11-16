@@ -9,23 +9,26 @@ import (
 )
 
 func main() {
+	const filename = "db_dictionary.json"
 	dict := dictionary.New()
 	reader := bufio.NewReader(os.Stdin)
+	dict.LoadFromFile()
 
 	for {
 		fmt.Printf("\nEnter action ->  add | define | remove | list | exit  : ")
 		action, _ := reader.ReadString('\n')
+		action = strings.TrimSpace(action)
 
 		switch action {
-		case "add\n":
+		case "add":
 			actionAdd(dict, reader)
-		case "define\n":
+		case "define":
 			actionDefine(dict, reader)
-		case "remove\n":
+		case "remove":
 			actionRemove(dict, reader)
-		case "list\n":
+		case "list":
 			actionList(dict)
-		case "exit\n":
+		case "exit":
 			os.Exit(0)
 		default:
 			fmt.Println("!!! Invalid action !!!")
@@ -43,6 +46,7 @@ func actionAdd(d *dictionary.Dictionary, reader *bufio.Reader) {
 	definition = strings.TrimSpace(definition)
 
 	d.Add(word, definition)
+	d.SaveToFile()
 	fmt.Printf("%s added.\n", word)
 }
 
@@ -57,7 +61,7 @@ func actionDefine(d *dictionary.Dictionary, reader *bufio.Reader) {
 		return
 	}
 
-	fmt.Printf("Definition: %s\n", entry.Definition)
+	fmt.Printf("- %s: %s\n", word, entry.Definition)
 }
 
 func actionRemove(d *dictionary.Dictionary, reader *bufio.Reader) {
@@ -66,6 +70,7 @@ func actionRemove(d *dictionary.Dictionary, reader *bufio.Reader) {
 	word = strings.TrimSpace(word)
 
 	d.Remove(word)
+	d.SaveToFile()
 	fmt.Printf("%s removed.\n", word)
 }
 
@@ -78,7 +83,7 @@ func actionList(d *dictionary.Dictionary) {
 
 	fmt.Println("\n--------------- list ---------------")
 	for _, entry := range entries {
-		fmt.Printf("- %s: %s \n\n", entry.Word, entry.Definition)
+		fmt.Printf("- %s:\n \t%s \n\n", entry.Word, entry.Definition)
 	}
 }
 
