@@ -1,100 +1,83 @@
 package main
 
 import (
-	"bufio"
 	"dictionaryApp/dictionary"
+	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
+var dict *dictionary.Dictionary
+
 func main() {
-	const filename = "db_dictionary.json"
-	dict := dictionary.New()
-	reader := bufio.NewReader(os.Stdin)
+	dict = dictionary.New()
+	dict.LoadFromFile()
 
-	for {
-		fmt.Printf("\nEnter action ->  add | define | remove | list | exit  : ")
-		action, _ := reader.ReadString('\n')
-		action = strings.TrimSpace(action)
-		dict.LoadFromFile()
+	r := mux.NewRouter()
+	router := r.PathPrefix("/dictionary").Subrouter()
+	router.HandleFunc("", handleAdd).Methods("POST")
+	router.HandleFunc("/{word}", handleDefine).Methods("GET")
+	router.HandleFunc("", handleList).Methods("GET")
+	router.HandleFunc("/{word}", handleDelete).Methods("DELETE")
 
-		switch action {
-		case "add":
-			actionAdd(dict, reader)
-		case "define":
-			actionDefine(dict, reader)
-		case "remove":
-			actionRemove(dict, reader)
-		case "list":
-			actionList(dict)
-		case "exit":
-			os.Exit(0)
-		default:
-			fmt.Println("!!! Invalid action !!!")
-		}
-	}
+	log.Fatal(http.ListenAndServe(":8080", router))
+
 }
 
-func actionAdd(d *dictionary.Dictionary, reader *bufio.Reader) {
-	fmt.Printf("\nEnter word: ")
-	word, _ := reader.ReadString('\n')
-	word = strings.TrimSpace(word)
-
-	fmt.Printf("\nEnter definition: ")
-	definition, _ := reader.ReadString('\n')
-	definition = strings.TrimSpace(definition)
-
-	d.Add(word, definition)
-	d.SaveToFile()
-	fmt.Printf("%s added.\n", word)
-}
-
-func actionDefine(d *dictionary.Dictionary, reader *bufio.Reader) {
-	fmt.Print("Enter word to define: ")
-	word, _ := reader.ReadString('\n')
-	word = strings.TrimSpace(word)
-
-	entry, err := d.Get(word)
+func handleAdd(w http.ResponseWriter, r *http.Request) {
+	var entry dictionary.Entry
+	err := json.NewDecoder(r.Body).Decode(&entry)
 	if err != nil {
-		fmt.Println("Not found.")
+		http.Error(w, "plz provide a Word and his Definition", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Printf("- %s: %s\n", word, entry.Definition)
+	dict.Add(entry.Word, entry.Definition)
+	dict.SaveToFile()
+
+	w.WriteHeader(http.StatusCreated)
+	response := map[string]string{"message": entry.Word + " added."}
+	jsonResponse(w, response)
 }
 
-func actionRemove(d *dictionary.Dictionary, reader *bufio.Reader) {
-	fmt.Print("Enter word to remove: ")
-	word, _ := reader.ReadString('\n')
-	word = strings.TrimSpace(word)
+func handleDefine(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	word := params["word"]
 
-	d.Remove(word)
-	d.SaveToFile()
-	fmt.Printf("%s removed.\n", word)
-}
-
-func actionList(d *dictionary.Dictionary) {
-	entries := d.List()
-	if len(entries) == 0 {
-		fmt.Println("Dictionary is empty.")
+	entry, err := dict.Get(word)
+	if err != nil {
+		http.Error(w, word+" doesn't exist", http.StatusNotFound)
 		return
 	}
 
-	fmt.Println("\n--------------- list ---------------")
-	for _, entry := range entries {
-		fmt.Printf("- %s:\n \t%s \n\n", entry.Word, entry.Definition)
-	}
+	response := map[string]string{"word": word, "definition": entry.Definition}
+	jsonResponse(w, response)
 }
 
-/*
-laptop
-compact and portable personal computer.
+func handleDelete(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	word := params["word"]
 
-telepheric
-term typically used in the context of cable cars and transportation systems.
+	dict.Remove(word)
+	dict.SaveToFile()
 
-web
-system of interconnected public webpages accessible through the Internet.
+	response := map[string]string{"message": fmt.Sprintf("%s deleted.", word)}
+	jsonResponse(w, response)
+}
 
-*/
+func handleList(w http.ResponseWriter, r *http.Request) {
+	entries := dict.List()
+	log.Println(entries)
+	jsonResponse(w, entries)
+}
+
+func jsonResponse(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		http.Error(w, "Error", http.StatusInternalServerError)
+	}
+}
