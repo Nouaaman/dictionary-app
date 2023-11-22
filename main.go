@@ -4,7 +4,6 @@ import (
 	"dictionaryApp/dictionary"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -23,8 +22,8 @@ func main() {
 	router.HandleFunc("", handleList).Methods("GET")
 	router.HandleFunc("/{word}", handleDelete).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8080", router))
-
+	fmt.Println("Listening on port 3000...")
+	fmt.Println(http.ListenAndServe(":3000", router))
 }
 
 func handleAdd(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +69,6 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 
 func handleList(w http.ResponseWriter, r *http.Request) {
 	entries := dict.List()
-	log.Println(entries)
 	jsonResponse(w, entries)
 }
 
