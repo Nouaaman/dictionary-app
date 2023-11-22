@@ -43,6 +43,9 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDefine(w http.ResponseWriter, r *http.Request) {
+
+	dict.LoadFromFile()
+
 	params := mux.Vars(r)
 	word := params["word"]
 
@@ -68,6 +71,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleList(w http.ResponseWriter, r *http.Request) {
+	dict.LoadFromFile()
 	entries := dict.List()
 	jsonResponse(w, entries)
 }
