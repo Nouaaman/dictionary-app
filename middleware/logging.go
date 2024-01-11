@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 )
 
 func LoggingMiddleware(next http.Handler) http.Handler {
@@ -15,22 +14,14 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	if err != nil {
 		log.Fatal("Error opening log file:", err)
 	}
-	defer logFile.Close()
 
-	// Use multi-writer to write logs to both console and file
-	logWriter := io.MultiWriter(os.Stdout, logFile)
-
+	logger := log.New(io.MultiWriter(os.Stdout, logFile), "", log.LstdFlags)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// Call the next handler
+		logString := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
-
-		// Logging
-		time := time.Now()
-		logString := fmt.Sprintf("[%s] %s %s \n", time.Format("2006-01-02 15:04:05"), r.Method, r.URL.Path)
-
 		// Write logs to both console and file
-		log.Println(logString)
-		fmt.Fprintln(logWriter, logString)
+		logger.Println(logString)
+		defer logFile.Close()
 	})
+
 }
