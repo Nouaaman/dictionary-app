@@ -1,14 +1,18 @@
 [
-	{
-		"Word": "web",
-		"Definition": "system of interconnected public webpages accessible through the Internet."
-	},
-	{
-		"Word": "laptop",
-		"Definition": "compact and portable personal computer."
-	},
-	{
-		"Word": "toothsome",
-		"Definition": "pleasing to the taste; palatable."
-	}
+  {
+    "Word": "web",
+    "Definition": "system of interconnected public webpages accessible through the Internet."
+  },
+  {
+    "Word": "laptop",
+    "Definition": "compact and portable personal computer."
+  },
+  {
+    "Word": "toothsome",
+    "Definition": "pleasing to the taste; palatable."
+  },
+  {
+    "Word": "server",
+    "Definition": "a computer or computer program which manages access to a centralized resource or service in a network."
+  }
 ]
