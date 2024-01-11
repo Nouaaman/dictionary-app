@@ -22,10 +22,10 @@ func main() {
 		return
 	}
 
-	// Create a new router
+	// new router
 	r := mux.NewRouter()
 	router := r.PathPrefix("/dictionary").Subrouter()
-	// Use the logging middleware
+	// logging middleware
 	r.Use(LoggingMiddleware)
 	//
 	router.HandleFunc("", handleAdd).Methods("POST")

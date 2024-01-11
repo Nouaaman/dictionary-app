@@ -1,5 +1,3 @@
-// dictionary.dictionary.go
-
 package dictionary
 
 import (
