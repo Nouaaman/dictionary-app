@@ -1,20 +1,28 @@
 package main
 
 import (
-	"dictionaryApp/dictionary"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"dictionaryApp/dictionary"
 )
 
 var dict *dictionary.Dictionary
 
 func main() {
 	dict = dictionary.New()
-	dict.LoadFromFile()
 
+	// Load dictionary from file
+	err := dict.LoadFromFile()
+	if err != nil {
+		fmt.Println("Error loading dictionary from file:", err)
+		return
+	}
+
+	// Create a new router
 	r := mux.NewRouter()
 	router := r.PathPrefix("/dictionary").Subrouter()
 	router.HandleFunc("", handleAdd).Methods("POST")
@@ -26,60 +34,112 @@ func main() {
 	fmt.Println(http.ListenAndServe(":3000", router))
 }
 
+func jsonResponse(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, "Error encoding JSON response")
+	}
+}
+
+/****************************************
+ * HANDLERS
+ ***************************************/
 func handleAdd(w http.ResponseWriter, r *http.Request) {
+	// Decode the JSON request body into an Entry struct
 	var entry dictionary.Entry
 	err := json.NewDecoder(r.Body).Decode(&entry)
 	if err != nil {
-		http.Error(w, "plz provide a Word and his Definition", http.StatusBadRequest)
+		handleError(w, http.StatusBadRequest, "Invalid JSON request body")
 		return
 	}
 
-	dict.Add(entry.Word, entry.Definition)
-	dict.SaveToFile()
+	// Add the entry to the dictionary
+	addErr := dict.Add(entry.Word, entry.Definition)
+	if addErr != nil {
+		if addErr == dictionary.ErrWordAlreadyExists {
+			handleError(w, http.StatusConflict, "Word already exists")
+		} else {
+			handleError(w, http.StatusInternalServerError, "Error adding entry to dictionary")
+		}
+		return
+	}
 
-	w.WriteHeader(http.StatusCreated)
-	response := map[string]string{"message": entry.Word + " added."}
-	jsonResponse(w, response)
+	// Save the dictionary to file
+	err = dict.SaveToFile()
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, "Error saving dictionary to file")
+		return
+	}
+
+	// Send success response
+	resp := map[string]string{"message": fmt.Sprintf("Word %s added successfully", entry.Word)}
+	jsonResponse(w, resp)
 }
 
 func handleDefine(w http.ResponseWriter, r *http.Request) {
-
+	// Load the dictionary from file
 	dict.LoadFromFile()
 
-	params := mux.Vars(r)
-	word := params["word"]
+	// Extract the word from the request URL
+	word := mux.Vars(r)["word"]
 
+	// Get the definition for the word
 	entry, err := dict.Get(word)
 	if err != nil {
-		http.Error(w, word+" doesn't exist", http.StatusNotFound)
+		if err == dictionary.ErrWordNotFound {
+			handleError(w, http.StatusNotFound, fmt.Sprintf("Word %s not found", word))
+		} else {
+			handleError(w, http.StatusInternalServerError, "Error getting definition")
+		}
 		return
 	}
 
-	response := map[string]string{"word": word, "definition": entry.Definition}
-	jsonResponse(w, response)
+	// Send response with word and definition
+	resp := map[string]string{"word": word, "definition": entry.Definition}
+	jsonResponse(w, resp)
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	word := params["word"]
+	// Load the dictionary from file
+	dict.LoadFromFile()
 
-	dict.Remove(word)
-	dict.SaveToFile()
+	// Extract the word from the request URL
+	word := mux.Vars(r)["word"]
 
-	response := map[string]string{"message": fmt.Sprintf("%s deleted.", word)}
-	jsonResponse(w, response)
+	// Delete the word from the dictionary
+	err := dict.Remove(word)
+	if err != nil {
+		if err == dictionary.ErrWordNotFound {
+			handleError(w, http.StatusNotFound, fmt.Sprintf("Word %s not found", word))
+		} else {
+			handleError(w, http.StatusInternalServerError, "Error removing word")
+		}
+		return
+	}
+
+	// Save the dictionary to file
+	err = dict.SaveToFile()
+	if err != nil {
+		handleError(w, http.StatusInternalServerError, "Error saving dictionary to file")
+		return
+	}
+
+	// Send success response
+	resp := map[string]string{"message": fmt.Sprintf("Word %s deleted successfully", word)}
+	jsonResponse(w, resp)
 }
 
+//handle List
 func handleList(w http.ResponseWriter, r *http.Request) {
 	dict.LoadFromFile()
 	entries := dict.List()
 	jsonResponse(w, entries)
 }
 
-func jsonResponse(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(data)
-	if err != nil {
-		http.Error(w, "Error", http.StatusInternalServerError)
-	}
+//handle Error
+func handleError(w http.ResponseWriter, statusCode int, message string) {
+	w.WriteHeader(statusCode)
+	resp := map[string]string{"error": message}
+	json.NewEncoder(w).Encode(resp)
 }

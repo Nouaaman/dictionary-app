@@ -1,3 +1,5 @@
+// dictionary.dictionary.go
+
 package dictionary
 
 import (
@@ -7,6 +9,9 @@ import (
 	"io/ioutil"
 	"os"
 )
+
+var ErrWordAlreadyExists = errors.New("word already exists")
+var ErrWordNotFound = errors.New("word not found")
 
 type Entry struct {
 	Word       string
@@ -25,54 +30,53 @@ func New() *Dictionary {
 
 const filename = "db_dictionary.json"
 
-// get data from the file
-func (d *Dictionary) LoadFromFile() {
-	// check if the file exixst or create new file
+func (d *Dictionary) LoadFromFile() error {
+	// Check if the file exists. If it doesn't exist, create a new file.
 	_, err := os.Stat(filename)
 	if os.IsNotExist(err) {
 		file, err := os.Create(filename)
 		if err != nil {
 			fmt.Println("Error creating file:", err)
-			return
+			return err
 		}
 		defer file.Close()
-		return
+		return nil
 	} else if err != nil {
 		fmt.Println("Error:", err)
-		return
+		return err
 	}
 
 	// Read data from the file
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		fmt.Println("Error loading file:", err)
-		return
+		return err
 	}
-	//return if no data in file
+	// return if no data in file
 	if len(data) == 0 {
-		return
+		return nil
 	}
 
 	var entries []Entry
 	if err := json.Unmarshal(data, &entries); err != nil {
 		fmt.Println("Error in data:", err)
-		return
+		return err
 	}
 
 	for _, entry := range entries {
 		d.Add(entry.Word, entry.Definition)
 	}
 
+	return nil
 }
 
-// save data to file
 func (d *Dictionary) SaveToFile() error {
 	entries := make([]Entry, 0, len(d.entries))
 	for _, entry := range d.entries {
 		entries = append(entries, entry)
 	}
 
-	data, err := json.MarshalIndent(entries, "", "	")
+	data, err := json.MarshalIndent(entries, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -80,21 +84,28 @@ func (d *Dictionary) SaveToFile() error {
 	return ioutil.WriteFile(filename, data, 0644)
 }
 
-func (d *Dictionary) Add(word string, definition string) {
+func (d *Dictionary) Add(word string, definition string) error {
+	_, found := d.entries[word]
+	if found {
+		return ErrWordAlreadyExists
+	}
+
 	entry := Entry{Word: word, Definition: definition}
 	d.entries[word] = entry
+	return nil
 }
 
-func (d *Dictionary) Get(word string) (Entry, error) {
+func (d *Dictionary) Get(word string) (*Entry, error) {
 	entry, found := d.entries[word]
 	if !found {
-		return Entry{}, errors.New("word not found")
+		return nil, ErrWordNotFound
 	}
-	return entry, nil
+	return &entry, nil
 }
 
-func (d *Dictionary) Remove(word string) {
+func (d *Dictionary) Remove(word string) error {
 	delete(d.entries, word)
+	return nil
 }
 
 func (d *Dictionary) List() []Entry {
