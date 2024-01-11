@@ -25,6 +25,9 @@ func main() {
 	// Create a new router
 	r := mux.NewRouter()
 	router := r.PathPrefix("/dictionary").Subrouter()
+	// Use the logging middleware
+	r.Use(LoggingMiddleware)
+	//
 	router.HandleFunc("", handleAdd).Methods("POST")
 	router.HandleFunc("/{word}", handleDefine).Methods("GET")
 	router.HandleFunc("", handleList).Methods("GET")
