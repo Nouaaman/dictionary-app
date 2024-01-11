@@ -22,7 +22,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		// Call the next handler in the chain
+		// Call the next handler
 		next.ServeHTTP(w, r)
 
 		// Logging

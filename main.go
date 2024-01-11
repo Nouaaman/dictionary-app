@@ -1,13 +1,14 @@
 package main
 
 import (
+	"dictionaryApp/dictionary"
+	"dictionaryApp/middleware"
+
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
-
-	"dictionaryApp/dictionary"
 )
 
 var dict *dictionary.Dictionary
@@ -26,7 +27,7 @@ func main() {
 	r := mux.NewRouter()
 	router := r.PathPrefix("/dictionary").Subrouter()
 	// logging middleware
-	r.Use(LoggingMiddleware)
+	r.Use(middleware.LoggingMiddleware)
 	//
 	router.HandleFunc("", handleAdd).Methods("POST")
 	router.HandleFunc("/{word}", handleDefine).Methods("GET")
