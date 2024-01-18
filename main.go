@@ -24,21 +24,30 @@ func main() {
 		return
 	}
 
-	// new router
+	r := setupRouter()
+
+	fmt.Println("Listening on port 3000...")
+	fmt.Println(http.ListenAndServe(":3000", r))
+}
+
+/******************************************
+*  setup router
+******************************************/
+
+func setupRouter() *mux.Router {
 	r := mux.NewRouter()
 	router := r.PathPrefix("/dictionary").Subrouter()
-	//  middlewares
+	// middlewares
 	router.Use(middleware.AuthenticationMiddleware)
 	router.Use(middleware.LoggingMiddleware)
 
-	//
+	// routes
 	router.HandleFunc("", handleAdd).Methods("POST")
 	router.HandleFunc("/{word}", handleDefine).Methods("GET")
 	router.HandleFunc("", handleList).Methods("GET")
 	router.HandleFunc("/{word}", handleDelete).Methods("DELETE")
 
-	fmt.Println("Listening on port 3000...")
-	fmt.Println(http.ListenAndServe(":3000", router))
+	return r
 }
 
 /****************************************
