@@ -32,7 +32,6 @@ const (
 	collectionName = "words"
 )
 
-// New initializes a new MongoDB-backed dictionary
 func New() (*Dictionary, error) {
 
 	connectionString := "mongodb+srv://nouaaman:v87QnLnYoTv6byLQ@dictionary.cemt71j.mongodb.net/?retryWrites=true&w=majority"
@@ -50,31 +49,29 @@ func New() (*Dictionary, error) {
 		return nil, err
 	}
 
-	// Check the connection
+	// check the connection
 	err = client.Ping(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get the collection
+	// get the collection
 	database := client.Database(databaseName)
 	collection := database.Collection(collectionName)
 
 	return &Dictionary{client: client, collection: collection}, nil
 }
 
-// Add adds a new entry to the dictionary
 func (d *Dictionary) Add(word, definition string) error {
-	// Check if the word already exists
+	// check if already exists
 	existingEntry, err := d.Get(word)
 	if err == nil && existingEntry != nil {
 		return ErrWordAlreadyExists
 	}
 
-	// Create a new entry
 	entry := Entry{Word: word, Definition: definition}
 
-	// Insert the entry into MongoDB
+	// insert into db
 	_, err = d.collection.InsertOne(context.Background(), entry)
 	if err != nil {
 		return err
@@ -83,7 +80,6 @@ func (d *Dictionary) Add(word, definition string) error {
 	return nil
 }
 
-// Get retrieves an entry from the dictionary by word
 func (d *Dictionary) Get(word string) (*Entry, error) {
 	var entry Entry
 	err := d.collection.FindOne(context.Background(), bson.M{"word": word}).Decode(&entry)
@@ -97,7 +93,6 @@ func (d *Dictionary) Get(word string) (*Entry, error) {
 	return &entry, nil
 }
 
-// Remove removes an entry from the dictionary by word
 func (d *Dictionary) Remove(word string) error {
 	_, err := d.collection.DeleteOne(context.Background(), bson.M{"word": word})
 	if err == mongo.ErrNoDocuments {
@@ -109,7 +104,6 @@ func (d *Dictionary) Remove(word string) error {
 	return nil
 }
 
-// List retrieves all entries from the dictionary
 func (d *Dictionary) List() ([]Entry, error) {
 	var entries []Entry
 	cursor, err := d.collection.Find(context.Background(), bson.M{})
