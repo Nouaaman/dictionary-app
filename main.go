@@ -1,10 +1,11 @@
+// main.go
+
 package main
 
 import (
 	"dictionaryApp/dictionary"
 	"dictionaryApp/middleware"
 	"dictionaryApp/responses"
-
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,12 +16,12 @@ import (
 var dict *dictionary.Dictionary
 
 func main() {
-	dict = dictionary.New()
+	var err error
 
-	// Load dictionary from file
-	err := dict.LoadFromFile()
+	// Initialize MongoDB-backed dictionary
+	dict, err = dictionary.New()
 	if err != nil {
-		fmt.Println("Error loading dictionary from file:", err)
+		fmt.Println("Error initializing dictionary DB:", err)
 		return
 	}
 
@@ -30,13 +31,11 @@ func main() {
 	fmt.Println(http.ListenAndServe(":3000", r))
 }
 
-/******************************************
-*  setup router
-******************************************/
-
+// setupRouter configures the router and routes
 func setupRouter() *mux.Router {
 	r := mux.NewRouter()
 	router := r.PathPrefix("/dictionary").Subrouter()
+
 	// middlewares
 	router.Use(middleware.AuthenticationMiddleware)
 	router.Use(middleware.LoggingMiddleware)
@@ -50,12 +49,11 @@ func setupRouter() *mux.Router {
 	return r
 }
 
-/****************************************
- * HANDLERS
- ***************************************/
+// handleAdd handles the addition of a new word and definition to the dictionary
 func handleAdd(w http.ResponseWriter, r *http.Request) {
-	// Decode the JSON request body into an Entry struct
 	var entry dictionary.Entry
+
+	// Decode the JSON request body into an Entry struct
 	err := json.NewDecoder(r.Body).Decode(&entry)
 	if err != nil {
 		responses.HandleError(w, http.StatusBadRequest, "Invalid JSON request body")
@@ -63,20 +61,12 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add the entry to the dictionary
-	addErr := dict.Add(entry.Word, entry.Definition)
-	if addErr != nil {
-		if addErr == dictionary.ErrWordAlreadyExists {
+	if err := dict.Add(entry.Word, entry.Definition); err != nil {
+		if err == dictionary.ErrWordAlreadyExists {
 			responses.HandleError(w, http.StatusConflict, "Word already exists")
 		} else {
 			responses.HandleError(w, http.StatusInternalServerError, "Error adding entry to dictionary")
 		}
-		return
-	}
-
-	// Save the dictionary to file
-	err = dict.SaveToFile()
-	if err != nil {
-		responses.HandleError(w, http.StatusInternalServerError, "Error saving dictionary to file")
 		return
 	}
 
@@ -85,11 +75,8 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 	responses.JSONResponse(w, resp)
 }
 
+// handleDefine retrieves the definition of a given word from the dictionary
 func handleDefine(w http.ResponseWriter, r *http.Request) {
-	// Load the dictionary from file
-	dict.LoadFromFile()
-
-	// Extract the word from the request URL
 	word := mux.Vars(r)["word"]
 
 	// Get the definition for the word
@@ -108,16 +95,12 @@ func handleDefine(w http.ResponseWriter, r *http.Request) {
 	responses.JSONResponse(w, resp)
 }
 
+// handleDelete deletes a word from the dictionary
 func handleDelete(w http.ResponseWriter, r *http.Request) {
-	// Load the dictionary from file
-	dict.LoadFromFile()
-
-	// Extract the word from the request URL
 	word := mux.Vars(r)["word"]
 
 	// Delete the word from the dictionary
-	err := dict.Remove(word)
-	if err != nil {
+	if err := dict.Remove(word); err != nil {
 		if err == dictionary.ErrWordNotFound {
 			responses.HandleError(w, http.StatusNotFound, fmt.Sprintf("Word %s not found", word))
 		} else {
@@ -126,21 +109,18 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save the dictionary to file
-	err = dict.SaveToFile()
-	if err != nil {
-		responses.HandleError(w, http.StatusInternalServerError, "Error saving dictionary to file")
-		return
-	}
-
 	// Send success response
 	resp := map[string]string{"message": fmt.Sprintf("Word %s deleted successfully", word)}
 	responses.JSONResponse(w, resp)
 }
 
-//handle List
+// handleList returns the list of all words in the dictionary
 func handleList(w http.ResponseWriter, r *http.Request) {
-	dict.LoadFromFile()
-	entries := dict.List()
+	entries, err := dict.List()
+	if err != nil {
+		responses.HandleError(w, http.StatusInternalServerError, "Error retrieving word list")
+		return
+	}
+
 	responses.JSONResponse(w, entries)
 }
